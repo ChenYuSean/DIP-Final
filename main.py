@@ -83,7 +83,7 @@ def getResoluLv(g):
 def gradFiltering(image):
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
-            if (getResoluLv(image[i, j]) > 2):
+            if (getResoluLv(image[i, j]) > 2 and image[i, j] < 64):
                 image[i, j] = 0
     return image
     
