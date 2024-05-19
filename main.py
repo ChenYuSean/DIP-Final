@@ -52,7 +52,7 @@ def parse_args():
     parser.add_argument('--output_path',default="./OutputImages",type=str)
     parser.add_argument('-tl', '--threshold_low', default=8, type=int)
     parser.add_argument('-th', '--threshold_high', default=None, type=float)
-    parser.add_argument('-tg', '--threshold_gradient', default=2, type=int)
+    parser.add_argument('-tg', '--threshold_gradient', default=2, type=float)
     parser.add_argument('--save_partial', action='store_true')
     parser.add_argument('--save_map', action='store_true')
     return parser.parse_args()
@@ -293,8 +293,8 @@ def main():
         print(f"Processing {fname}...")
         ## Preprocessing
         # sample = cv2.rotate(sample, cv2.ROTATE_90_CLOCKWISE)
-        # sample = GausBlur(cv2.imread(args.input_path, cv2.IMREAD_GRAYSCALE))
-        sample = cv2.GaussianBlur(sample,(3,3),0)
+        # sample = GausBlur(sample)
+        sample = cv2.GaussianBlur(sample,(5,5),0)
         
         ## compute entropy and thresholding
         entropy = entropy_2d(sample)
