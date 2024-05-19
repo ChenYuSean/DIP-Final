@@ -278,7 +278,7 @@ def main():
     np.random.seed(0)
     args = parse_args()
     
-    output_folder, _= os.path.split(args.output_path)
+    output_folder = args.output_path
     os.makedirs(output_folder, exist_ok=True)
 
     input_files = []
@@ -288,7 +288,7 @@ def main():
         input_files.append(args.input_path)
     
     for file in input_files:
-        fname = file.split('/')[-1]
+        fname = os.path.basename(file)
         sample = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
         print(f"Processing {fname}...")
         ## Preprocessing
@@ -326,7 +326,7 @@ def main():
             cv2.imwrite(os.path.join(output_folder, f"orgGrad-{fname}"), (np.abs(grad_x) + np.abs(grad_y))/2)
             cv2.imwrite(os.path.join(output_folder, f"filterGrad-{fname}"), grad)
             cv2.imwrite(os.path.join(output_folder, f"orientation-{fname}"), orientation_map)
-            cv2.imwrite(os.path.join(output_folder, "color_sample.png"), DIRECTION.get_color_map_sample())
+            # cv2.imwrite(os.path.join(output_folder, "color_sample.png"), DIRECTION.get_color_map_sample())
             print('Save map finished')
             
         ## find edge points
