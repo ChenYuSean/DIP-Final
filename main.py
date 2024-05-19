@@ -49,7 +49,7 @@ class DIRECTION:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_path', default="./SampleImages/lena.png", type=str)
-    parser.add_argument('--output_path',default="./OutputImages/edge_map.png",type=str)
+    parser.add_argument('--output_path',default="./OutputImages",type=str)
     parser.add_argument('-tl', '--threshold_low', default=8, type=int)
     parser.add_argument('-th', '--threshold_high', default=None, type=float)
     parser.add_argument('--save_partial', action='store_true')
@@ -80,10 +80,10 @@ def getResoluLv(g):
     elif (g >= 32): return 3 - g/32
     else: return 6 - g/8
 
-def gradFiltering(image):
+def gradFiltering(image, threshold):
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
-            if (getResoluLv(image[i, j]) > 2):
+            if (getResoluLv(image[i, j]) > threshold):
                 image[i, j] = 0
     return image
     
@@ -276,47 +276,62 @@ def edge_linking(grad, orientation, anchors, threshold_low, threshold_high, save
 def main():
     np.random.seed(0)
     args = parse_args()
+    
     output_folder, _= os.path.split(args.output_path)
     os.makedirs(output_folder, exist_ok=True)
-    fname = args.input_path.split('/')[-1]
-    sample = cv2.imread(args.input_path, cv2.IMREAD_GRAYSCALE)
+
+    input_files = []
+    if os.path.isdir(args.input_path):
+        input_files = [os.path.join(args.input_path, f) for f in os.listdir(args.input_path) if f.endswith('.png') or f.endswith('.jpg')]
+    else:
+        input_files.append(args.input_path)
     
-    ## Preprocessing
-    # sample = cv2.rotate(sample, cv2.ROTATE_90_CLOCKWISE)
-    # sample = GausBlur(cv2.imread(args.input_path, cv2.IMREAD_GRAYSCALE))
-    sample = cv2.GaussianBlur(sample,(3,3),0)
-    ## compute entropy and thresholding
-    entropy = entropy_2d(sample)
-    threshold_high = 0.043 * sample.shape[0] * sample.shape[1]
-    if (entropy > 12.7) : threshold_high = 0.087 * sample.shape[0] * sample.shape[1]
-    elif (entropy >= 10.8) : threshold_high = 0.065 * sample.shape[0] * sample.shape[1]
-    if(args.threshold_high != None): threshold_high = args.threshold_high * sample.shape[0] * sample.shape[1]
-    ## compute gradient and orientation, then find anchor points
-    grad_x = cv2.Sobel(sample, cv2.CV_64F, 1, 0, ksize=3)
-    grad_y = cv2.Sobel(sample, cv2.CV_64F, 0, 1, ksize=3)
-    cv2.normalize(grad_x, grad_x, -255, 255, cv2.NORM_MINMAX)
-    cv2.normalize(grad_y, grad_y, -255, 255, cv2.NORM_MINMAX)
-    grad = gradFiltering((np.abs(grad_x) + np.abs(grad_y))/2)
-    orientation = compute_gradient_orientation(grad_x, grad_y)
-    anchors = find_anchor(grad, orientation)
-    if args.save_map:
-        blank = np.zeros(grad.shape, dtype = np.uint8)
-        orientation_map = np.zeros((*grad.shape, 3), dtype = np.uint8)
-        for ac in anchors:
-            r, c = ac
-            blank[r, c] = 255
-            orientation_map[r, c] = DIRECTION.COLOR[orientation[r, c].astype(int)]
-        orientation_map = cv2.cvtColor(orientation_map, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(os.path.join(output_folder, f"anchor-{fname}"), blank)
-        cv2.imwrite(os.path.join(output_folder, f"cannyGrad-{fname}"), np.sqrt(grad_x*grad_x + grad_y*grad_y))
-        cv2.imwrite(os.path.join(output_folder, f"orgGrad-{fname}"), (np.abs(grad_x) + np.abs(grad_y))/2)
-        cv2.imwrite(os.path.join(output_folder, f"filterGrad-{fname}"), grad)
-        cv2.imwrite(os.path.join(output_folder, f"orientation-{fname}"), orientation_map)
-        cv2.imwrite(os.path.join(output_folder, "color_sample.png"), DIRECTION.get_color_map_sample())
-        print('Save map finished')
-    ## find edge points
-    edge_map = edge_linking(grad, orientation, anchors, args.threshold_low, threshold_high, save_partial=args.save_partial, save_path=os.path.join(output_folder, f"edge_map-{fname}"))
-    cv2.imwrite(os.path.join(output_folder, f"edge_map-{fname}"), edge_map)
+    for file in input_files:
+        fname = file.split('/')[-1]
+        sample = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
+        print(f"Processing {fname}...")
+        ## Preprocessing
+        # sample = cv2.rotate(sample, cv2.ROTATE_90_CLOCKWISE)
+        # sample = GausBlur(cv2.imread(args.input_path, cv2.IMREAD_GRAYSCALE))
+        sample = cv2.GaussianBlur(sample,(3,3),0)
+        
+        ## compute entropy and thresholding
+        entropy = entropy_2d(sample)
+        threshold_high = 0.043 * sample.shape[0] * sample.shape[1]
+        if (entropy > 12.7) : threshold_high = 0.087 * sample.shape[0] * sample.shape[1]
+        elif (entropy >= 10.8) : threshold_high = 0.065 * sample.shape[0] * sample.shape[1]
+        if(args.threshold_high != None): threshold_high = args.threshold_high * sample.shape[0] * sample.shape[1]
+        
+        ## compute gradient and orientation, then find anchor points
+        grad_x = cv2.Sobel(sample, cv2.CV_64F, 1, 0, ksize=3)
+        grad_y = cv2.Sobel(sample, cv2.CV_64F, 0, 1, ksize=3)
+        cv2.normalize(grad_x, grad_x, -255, 255, cv2.NORM_MINMAX)
+        cv2.normalize(grad_y, grad_y, -255, 255, cv2.NORM_MINMAX)
+        grad = (np.abs(grad_x) + np.abs(grad_y))/2
+        grad = gradFiltering(grad, 2)
+        orientation = compute_gradient_orientation(grad_x, grad_y)
+        anchors = find_anchor(grad, orientation)
+        
+        if args.save_map:
+            blank = np.zeros(grad.shape, dtype = np.uint8)
+            orientation_map = np.zeros((*grad.shape, 3), dtype = np.uint8)
+            for ac in anchors:
+                r, c = ac
+                blank[r, c] = 255
+                orientation_map[r, c] = DIRECTION.COLOR[orientation[r, c].astype(int)]
+            orientation_map = cv2.cvtColor(orientation_map, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(os.path.join(output_folder, f"anchor-{fname}"), blank)
+            cv2.imwrite(os.path.join(output_folder, f"cannyGrad-{fname}"), np.sqrt(grad_x*grad_x + grad_y*grad_y))
+            cv2.imwrite(os.path.join(output_folder, f"orgGrad-{fname}"), (np.abs(grad_x) + np.abs(grad_y))/2)
+            cv2.imwrite(os.path.join(output_folder, f"filterGrad-{fname}"), grad)
+            cv2.imwrite(os.path.join(output_folder, f"orientation-{fname}"), orientation_map)
+            cv2.imwrite(os.path.join(output_folder, "color_sample.png"), DIRECTION.get_color_map_sample())
+            print('Save map finished')
+            
+        ## find edge points
+        edge_map = edge_linking(grad, orientation, anchors, args.threshold_low, threshold_high, save_partial=args.save_partial, save_path=os.path.join(output_folder, f"edge_map-{fname}"))
+        cv2.imwrite(os.path.join(output_folder, f"edge_map-{fname}"), edge_map)
+        print(f'{fname} finished')
     
 
 if __name__ == "__main__":
