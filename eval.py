@@ -12,6 +12,15 @@ def parse_args():
     parser.add_argument('--output_path',default="./OutputImages",type=str)
     return parser.parse_args()
 
+def get_mat_data(mat_file):
+    datas = []
+    mat = sio.loadmat(mat_file)
+    gt = mat['groundTruth']
+    for i in range(6):
+        _, binary = cv2.threshold(gt[0][i][0][0][1], 0.5, 255, cv2.THRESH_BINARY)
+        datas.append(binary)
+    return datas
+
 def main():
     np.random.seed(0)
     args = parse_args()
@@ -22,13 +31,13 @@ def main():
     file = args.predict
     fname = os.path.basename(file)
     pred = cv2.imread(file, cv2.IMREAD_GRAYSCALE)
-    pred = cv2.threshold(pred, 127, 255, cv2.THRESH_BINARY)
+    _, pred = cv2.threshold(pred, 127, 255, cv2.THRESH_BINARY)
     
-    mat = sio.loadmat(args.target)
-    gt = mat['groundTruth']
-    print(gt[0][0][0][0][0])
-    print(gt[0][0][0][0][1])
-    cv2.imshow("mat", gt[0][0][0][0][0])
+    gts = get_mat_data(args.target)
+    
+    cv2.imshow("pred", pred)
+    for i, gt in enumerate(gts):
+        cv2.imshow(f"gt_{i}", gt)
     cv2.waitKey(0)
     
 
