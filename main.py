@@ -52,6 +52,7 @@ def parse_args():
     parser.add_argument('--output_path',default="./OutputImages",type=str)
     parser.add_argument('-tl', '--threshold_low', default=8, type=int)
     parser.add_argument('-th', '--threshold_high', default=None, type=float)
+    parser.add_argument('-tg', '--threshold_gradient', default=2, type=int)
     parser.add_argument('--save_partial', action='store_true')
     parser.add_argument('--save_map', action='store_true')
     return parser.parse_args()
@@ -83,7 +84,7 @@ def getResoluLv(g):
 def gradFiltering(image, threshold):
     for i in range(image.shape[0]):
         for j in range(image.shape[1]):
-            if (getResoluLv(image[i, j]) > 2 and image[i, j] < 64):
+            if (getResoluLv(image[i, j]) > threshold and image[i, j] < 64):
                 image[i, j] = 0
     return image
     
@@ -308,7 +309,7 @@ def main():
         cv2.normalize(grad_x, grad_x, -255, 255, cv2.NORM_MINMAX)
         cv2.normalize(grad_y, grad_y, -255, 255, cv2.NORM_MINMAX)
         grad = (np.abs(grad_x) + np.abs(grad_y))/2
-        grad = gradFiltering(grad, 2)
+        grad = gradFiltering(grad, threshold=args.threshold_gradient)
         orientation = compute_gradient_orientation(grad_x, grad_y)
         anchors = find_anchor(grad, orientation)
         
